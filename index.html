@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Night Shelter — Выживание</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrapper">
+    <!-- Верхняя панель HUD -->
+    <div id="hud">
+      <div class="hud-row">
+        <div class="stat" id="hud-level">Ур. 1 (Ночь 1)</div>
+        <div class="stat phase-day" id="hud-phase">ДЕНЬ: 20с</div>
+        <button id="btn-test-lvl" title="Тест уровня">+1 Ур.</button>
+      </div>
+      <div class="hud-row">
+        <div class="stat hp">❤️ <span id="hud-hp">100</span></div>
+        <div class="stat">🪵 <span id="hud-wood">6</span></div>
+        <div class="stat" id="hud-weapon">🏏 Бита</div>
+      </div>
+    </div>
+
+    <!-- Игровой холст -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Экран поражения -->
+    <div id="game-over" class="hidden">
+      <h1>ВЫ ПОГИБЛИ</h1>
+      <p id="final-stats">Пережито ночей: 0</p>
+      <button id="btn-restart">Начать заново</button>
+    </div>
+
+    <!-- Сенсорное управление под большие пальцы -->
+    <div id="controls">
+      <div class="joystick-zone" id="stick-move">
+        <div class="joystick-knob" id="knob-move"></div>
+      </div>
+
+      <div class="action-buttons">
+        <button id="btn-repair" class="act-btn repair" disabled>🔨 Чинить (1🪵)</button>
+        <button id="btn-attack" class="act-btn attack">⚔️ УДАР</button>
+      </div>
+
+      <div class="joystick-zone" id="stick-aim">
+        <div class="joystick-knob" id="knob-aim"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
