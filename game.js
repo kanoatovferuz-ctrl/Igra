@@ -31,6 +31,7 @@ function initGame() {
     player: {
       x: cx,
       y: cy,
+      radius: GAME_CONFIG.player.radius,
       angle: -Math.PI / 2,
       hp: GAME_CONFIG.player.maxHp,
       wood: GAME_CONFIG.player.startWood,
@@ -452,7 +453,20 @@ function updateHUD() {
   }
 }
 
-// --- ОТРИСОВКА МОДЕЛИ ЧЕЛОВЕЧКА ---
+function drawBat(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
 function drawHumanPlayer(p) {
   ctx.save();
   ctx.translate(p.x, p.y);
@@ -460,14 +474,12 @@ function drawHumanPlayer(p) {
 
   const step = Math.sin(state.walkAnim) * 6;
 
-  // Ноги
   ctx.fillStyle = "#1e3a8a";
   ctx.beginPath();
   ctx.arc(step, -8, 6, 0, Math.PI * 2);
   ctx.arc(-step, 8, 6, 0, Math.PI * 2);
   ctx.fill();
 
-  // Плечи / куртка
   ctx.fillStyle = "#2563eb";
   ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 2.5;
@@ -476,14 +488,12 @@ function drawHumanPlayer(p) {
   ctx.fill();
   ctx.stroke();
 
-  // Руки
   ctx.fillStyle = "#fcd34d";
   ctx.beginPath();
   ctx.arc(10, -12, 5, 0, Math.PI * 2);
   ctx.arc(14, 9, 5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Оружие в правой руке (бита или пистолет)
   if (state.level >= GAME_CONFIG.pistolUnlockLevel) {
     ctx.fillStyle = "#94a3b8";
     ctx.fillRect(14, 6, 16, 5);
@@ -491,13 +501,11 @@ function drawHumanPlayer(p) {
     ctx.fillStyle = "#d97706";
     ctx.strokeStyle = "#fef08a";
     ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(12, 6, 24, 6, 3);
+    drawBat(12, 6, 24, 6, 3);
     ctx.fill();
     ctx.stroke();
   }
 
-  // Голова
   ctx.fillStyle = "#fde68a";
   ctx.strokeStyle = "#0f172a";
   ctx.lineWidth = 2;
@@ -506,7 +514,6 @@ function drawHumanPlayer(p) {
   ctx.fill();
   ctx.stroke();
 
-  // Волосы / кепка
   ctx.fillStyle = "#1e293b";
   ctx.beginPath();
   ctx.arc(0, 0, 9.5, Math.PI * 0.65, Math.PI * 1.35);
@@ -527,11 +534,9 @@ function render() {
   ctx.scale(scale, scale);
   ctx.translate(-camX, -camY);
 
-  // Земля / двор
   ctx.fillStyle = "#1e293b";
   ctx.fillRect(0, 0, GAME_CONFIG.worldWidth, GAME_CONFIG.worldHeight);
 
-  // Сетка земли
   ctx.strokeStyle = "rgba(148, 163, 184, 0.1)";
   ctx.lineWidth = 1;
   const grid = 48;
@@ -548,12 +553,10 @@ function render() {
     ctx.stroke();
   }
 
-  // Пол дома
   const h = GAME_CONFIG.house;
   ctx.fillStyle = "#5c3c24";
   ctx.fillRect(h.x, h.y, h.width, h.height);
 
-  // Ресурсы на земле
   for (let item of state.pickups) {
     ctx.fillStyle = item.type === "wood" ? "#f59e0b" : "#38bdf8";
     ctx.beginPath();
@@ -564,13 +567,11 @@ function render() {
     ctx.stroke();
   }
 
-  // Стены дома
   ctx.fillStyle = "#94a3b8";
   for (let w of state.walls) {
     ctx.fillRect(w.x, w.y, w.w, w.h);
   }
 
-  // Окна / баррикады
   for (let op of state.openings) {
     if (op.hp > 0) {
       ctx.fillStyle = op.hp > 50 ? "#d97706" : "#ef4444";
@@ -586,7 +587,6 @@ function render() {
     }
   }
 
-  // Пули
   ctx.fillStyle = "#fde047";
   for (let b of state.bullets) {
     ctx.beginPath();
@@ -594,7 +594,6 @@ function render() {
     ctx.fill();
   }
 
-  // Монстры
   for (let en of state.enemies) {
     ctx.fillStyle = en.isFast ? "#c084fc" : "#4ade80";
     ctx.beginPath();
@@ -610,7 +609,6 @@ function render() {
     ctx.fillRect(en.x - 15, en.y - en.radius - 9, 30 * (en.hp / en.maxHp), 5);
   }
 
-  // Взмах битой
   const p = state.player;
   if (p.swingVisual > 0) {
     ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
@@ -620,7 +618,6 @@ function render() {
     ctx.stroke();
   }
 
-  // Модель человечка
   drawHumanPlayer(p);
 
   ctx.restore();
