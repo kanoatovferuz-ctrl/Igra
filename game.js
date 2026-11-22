@@ -1,7 +1,6 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Слой темноты (offscreen canvas)
 const darkCanvas = document.createElement("canvas");
 const darkCtx = darkCanvas.getContext("2d");
 
@@ -29,7 +28,7 @@ function initGame() {
     gameOver: false,
     player: {
       x: cx,
-      y: cy,
+      y: cy + 40,
       angle: -Math.PI / 2,
       hp: GAME_CONFIG.player.maxHp,
       wood: GAME_CONFIG.player.startWood,
@@ -37,12 +36,11 @@ function initGame() {
       attackTimer: 0,
       swingVisual: 0,
     },
-    // 4 окна/проема по сторонам дома (сразу слегка повреждены для удобного теста ремонта)
     openings: [
-      { id: "top", x: cx - 35, y: h.y, w: 70, h: h.wallThickness, hp: 70 },
-      { id: "bottom", x: cx - 35, y: h.y + h.height - h.wallThickness, w: 70, h: h.wallThickness, hp: 70 },
-      { id: "left", x: h.x, y: cy - 35, w: h.wallThickness, h: 70, hp: 70 },
-      { id: "right", x: h.x + h.width - h.wallThickness, y: cy - 35, w: h.wallThickness, h: 70, hp: 70 },
+      { id: "top", x: cx - 28, y: h.y, w: 56, h: h.wallThickness, hp: 70 },
+      { id: "bottom", x: cx - 28, y: h.y + h.height - h.wallThickness, w: 56, h: h.wallThickness, hp: 70 },
+      { id: "left", x: h.x, y: cy - 28, w: h.wallThickness, h: 56, hp: 70 },
+      { id: "right", x: h.x + h.width - h.wallThickness, y: cy - 28, w: h.wallThickness, h: 56, hp: 70 },
     ],
     walls: [],
     pickups: [],
@@ -62,7 +60,7 @@ function buildHouseWalls() {
   const t = h.wallThickness;
   const cx = h.x + h.width / 2;
   const cy = h.y + h.height / 2;
-  const gap = 35;
+  const gap = 28;
 
   state.walls = [
     { x: h.x, y: h.y, w: cx - gap - h.x, h: t },
@@ -78,17 +76,18 @@ function buildHouseWalls() {
 
 function spawnDayPickups() {
   state.pickups = [];
+  const h = GAME_CONFIG.house;
   const count = 10 + Math.min(state.level, 8);
   for (let i = 0; i < count; i++) {
     let px, py;
     do {
-      px = 100 + Math.random() * (GAME_CONFIG.worldWidth - 200);
-      py = 100 + Math.random() * (GAME_CONFIG.worldHeight - 200);
+      px = 70 + Math.random() * (GAME_CONFIG.worldWidth - 140);
+      py = 70 + Math.random() * (GAME_CONFIG.worldHeight - 140);
     } while (
-      px > GAME_CONFIG.house.x - 40 &&
-      px < GAME_CONFIG.house.x + GAME_CONFIG.house.width + 40 &&
-      py > GAME_CONFIG.house.y - 40 &&
-      py < GAME_CONFIG.house.y + GAME_CONFIG.house.height + 40
+      px > h.x - 35 &&
+      px < h.x + h.width + 35 &&
+      py > h.y - 35 &&
+      py < h.y + h.height + 35
     );
 
     const isAmmo = state.level >= GAME_CONFIG.pistolUnlockLevel && Math.random() < 0.4;
@@ -103,7 +102,7 @@ function spawnDayPickups() {
 function spawnEnemy() {
   const side = Math.floor(Math.random() * 4);
   let x, y;
-  const margin = 40;
+  const margin = 30;
   if (side === 0) { x = Math.random() * GAME_CONFIG.worldWidth; y = margin; }
   if (side === 1) { x = Math.random() * GAME_CONFIG.worldWidth; y = GAME_CONFIG.worldHeight - margin; }
   if (side === 2) { x = margin; y = Math.random() * GAME_CONFIG.worldHeight; }
@@ -115,8 +114,8 @@ function spawnEnemy() {
   state.enemies.push({
     x,
     y,
-    radius: isFast ? 13 : 16,
-    speed: isFast ? 125 : 75 + Math.min(state.level * 3, 45),
+    radius: isFast ? 14 : 17,
+    speed: isFast ? 120 : 72 + Math.min(state.level * 3, 45),
     hp: Math.round((isFast ? 45 : 75) * hpScale),
     maxHp: Math.round((isFast ? 45 : 75) * hpScale),
     damage: 10 + Math.floor(state.level * 1.5),
@@ -186,7 +185,6 @@ function setupJoystick(zoneId, knobId, onMove) {
   zone.addEventListener("touchend", endTouch, { passive: false });
   zone.addEventListener("touchcancel", endTouch, { passive: false });
 
-  // Поддержка теста мышью в браузере на ПК
   zone.addEventListener("mousedown", (e) => {
     mouseDown = true;
     setKnobFromPoint(e.clientX, e.clientY);
@@ -215,7 +213,6 @@ setupJoystick("stick-aim", "knob-aim", (x, y) => {
   }
 });
 
-// Кнопка удара / выстрела
 const btnAttack = document.getElementById("btn-attack");
 btnAttack.addEventListener("touchstart", (e) => {
   e.preventDefault();
@@ -233,8 +230,8 @@ function performAttack() {
     state.player.attackTimer = cfg.cooldown;
     state.player.ammo--;
     state.bullets.push({
-      x: state.player.x + Math.cos(state.player.angle) * 20,
-      y: state.player.y + Math.sin(state.player.angle) * 20,
+      x: state.player.x + Math.cos(state.player.angle) * 22,
+      y: state.player.y + Math.sin(state.player.angle) * 22,
       vx: Math.cos(state.player.angle) * cfg.bulletSpeed,
       vy: Math.sin(state.player.angle) * cfg.bulletSpeed,
       damage: cfg.damage,
@@ -264,7 +261,6 @@ function performAttack() {
   updateHUD();
 }
 
-// Кнопка ремонта окна
 const btnRepair = document.getElementById("btn-repair");
 btnRepair.addEventListener("touchstart", (e) => {
   e.preventDefault();
@@ -298,7 +294,6 @@ function repairNearestOpening() {
   }
 }
 
-// Тест повышения уровня
 const btnTestLvl = document.getElementById("btn-test-lvl");
 btnTestLvl.addEventListener("touchstart", (e) => {
   e.preventDefault();
@@ -317,7 +312,6 @@ btnRestart.addEventListener("touchstart", (e) => {
 }, { passive: false });
 btnRestart.addEventListener("click", initGame);
 
-// --- ФИЗИКА И СТОЛКНОВЕНИЯ ---
 function resolveCircleRect(circle, rect) {
   const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.w));
   const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.h));
@@ -334,7 +328,6 @@ function resolveCircleRect(circle, rect) {
   return false;
 }
 
-// --- ИГРОВОЙ ЦИКЛ ---
 let lastTime = performance.now();
 
 function update(dt) {
@@ -471,34 +464,181 @@ function updateHUD() {
   }
 }
 
-// --- ОТРИСОВКА ---
 function render() {
-  const camX = state.player.x - canvas.width / 2;
-  const camY = state.player.y - canvas.height / 2;
+  const scale = GAME_CONFIG.cameraScale || 1;
+  const viewW = canvas.width / scale;
+  const viewH = canvas.height / scale;
+  const camX = state.player.x - viewW / 2;
+  const camY = state.player.y - viewH / 2;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
+  ctx.scale(scale, scale);
   ctx.translate(-camX, -camY);
 
+  // Земля / двор
   ctx.fillStyle = "#1e293b";
   ctx.fillRect(0, 0, GAME_CONFIG.worldWidth, GAME_CONFIG.worldHeight);
 
-  const h = GAME_CONFIG.house;
-  ctx.fillStyle = "#3f2e21";
-  ctx.fillRect(h.x, h.y, h.width, h.height);
-
-  for (let item of state.pickups) {
-    ctx.fillStyle = item.type === "wood" ? "#d97706" : "#38bdf8";
+  // Сетка земли для ощущения движения
+  ctx.strokeStyle = "rgba(148, 163, 184, 0.08)";
+  ctx.lineWidth = 1;
+  const grid = 48;
+  for (let gx = 0; gx <= GAME_CONFIG.worldWidth; gx += grid) {
     ctx.beginPath();
-    ctx.arc(item.x, item.y, 10, 0, Math.PI * 2);
+    ctx.moveTo(gx, 0);
+    ctx.lineTo(gx, GAME_CONFIG.worldHeight);
+    ctx.stroke();
+  }
+  for (let gy = 0; gy <= GAME_CONFIG.worldHeight; gy += grid) {
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(GAME_CONFIG.worldWidth, gy);
+    ctx.stroke();
+  }
+
+  // Граница мира
+  ctx.strokeStyle = "#475569";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(0, 0, GAME_CONFIG.worldWidth, GAME_CONFIG.worldHeight);
+
+  // Пол дома + коврик у входа
+  const h = GAME_CONFIG.house;
+  ctx.fillStyle = "#5c3c24";
+  ctx.fillRect(h.x, h.y, h.width, h.height);
+  ctx.strokeStyle = "#92400e";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(h.x, h.y, h.width, h.height);
+
+  // Ресурсы на земле
+  for (let item of state.pickups) {
+    ctx.fillStyle = item.type === "wood" ? "#f59e0b" : "#38bdf8";
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Стены дома
+  ctx.fillStyle = "#94a3b8";
+  for (let w of state.walls) {
+    ctx.fillRect(w.x, w.y, w.w, w.h);
+    ctx.strokeStyle = "#1e293b";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(w.x, w.y, w.w, w.h);
+  }
+
+  // Окна / баррикады
+  for (let op of state.openings) {
+    if (op.hp > 0) {
+      ctx.fillStyle = op.hp > 50 ? "#d97706" : "#ef4444";
+      ctx.fillRect(op.x, op.y, op.w, op.h);
+      ctx.strokeStyle = "#fef08a";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(op.x, op.y, op.w, op.h);
+    } else {
+      ctx.strokeStyle = "#f87171";
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(op.x, op.y, op.w, op.h);
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Пули
+  ctx.fillStyle = "#fde047";
+  for (let b of state.bullets) {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 4.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  ctx.fillStyle = "#64748b";
-  for (let w of state.walls) {
-    ctx.fillRect(w.x, w.y, w.w, w.h);
+  // Монстры
+  for (let en of state.enemies) {
+    ctx.fillStyle = en.isFast ? "#c084fc" : "#4ade80";
+    ctx.beginPath();
+    ctx.arc(en.x, en.y, en.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#090d16";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(en.x - 15, en.y - en.radius - 9, 30, 5);
+    ctx.fillStyle = "#ef4444";
+    ctx.fillRect(en.x - 15, en.y - en.radius - 9, 30 * (en.hp / en.maxHp), 5);
   }
 
-  for (let op of state.openings) {
-    if (op.hp > 0) {
-      ctx.fillStyle = op.hp > 50 ? "#b45
+  // Анимация взмаха битой
+  const p = state.player;
+  if (p.swingVisual > 0) {
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, GAME_CONFIG.weapons.bat.range, p.angle - 1.1, p.angle + 1.1);
+    ctx.stroke();
+  }
+
+  // Игрок (яркий контрастный персонаж с обводкой)
+  ctx.fillStyle = "#38bdf8";
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Оружие в руках
+  ctx.strokeStyle = state.level >= GAME_CONFIG.pistolUnlockLevel ? "#e2e8f0" : "#fbbf24";
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  ctx.lineTo(p.x + Math.cos(p.angle) * 28, p.y + Math.sin(p.angle) * 28);
+  ctx.stroke();
+
+  ctx.restore();
+
+  if (state.isNight) {
+    darkCtx.globalCompositeOperation = "source-over";
+    darkCtx.fillStyle = "rgba(3, 5, 10, 0.9)";
+    darkCtx.fillRect(0, 0, darkCanvas.width, darkCanvas.height);
+
+    darkCtx.globalCompositeOperation = "destination-out";
+    const px = canvas.width / 2;
+    const py = canvas.height / 2;
+
+    const aura = darkCtx.createRadialGradient(px, py, 12, px, py, 95);
+    aura.addColorStop(0, "rgba(0,0,0,1)");
+    aura.addColorStop(1, "rgba(0,0,0,0)");
+    darkCtx.fillStyle = aura;
+    darkCtx.beginPath();
+    darkCtx.arc(px, py, 95, 0, Math.PI * 2);
+    darkCtx.fill();
+
+    const beamLen = 300;
+    const spread = 0.5;
+    const grad = darkCtx.createRadialGradient(px, py, 15, px, py, beamLen);
+    grad.addColorStop(0, "rgba(0,0,0,1)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    darkCtx.fillStyle = grad;
+    darkCtx.beginPath();
+    darkCtx.moveTo(px, py);
+    darkCtx.arc(px, py, beamLen, p.angle - spread, p.angle + spread);
+    darkCtx.closePath();
+    darkCtx.fill();
+
+    ctx.drawImage(darkCanvas, 0, 0);
+  }
+}
+
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+requestAnimationFrame(loop);
