@@ -7,11 +7,12 @@ const darkCtx = darkCanvas.getContext("2d");
 let state = {};
 
 function resizeCanvas() {
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = Math.max(1, rect.width);
-  canvas.height = Math.max(1, rect.height);
-  darkCanvas.width = Math.max(1, rect.width);
-  darkCanvas.height = Math.max(1, rect.height);
+  const w = window.innerWidth || 360;
+  const h = window.innerHeight || 640;
+  canvas.width = w;
+  canvas.height = h;
+  darkCanvas.width = w;
+  darkCanvas.height = h;
 }
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
@@ -26,9 +27,10 @@ function initGame() {
     isNight: false,
     phaseTimer: GAME_CONFIG.dayDuration,
     gameOver: false,
+    walkAnim: 0,
     player: {
       x: cx,
-      y: cy + 40,
+      y: cy,
       angle: -Math.PI / 2,
       hp: GAME_CONFIG.player.maxHp,
       wood: GAME_CONFIG.player.startWood,
@@ -77,12 +79,12 @@ function buildHouseWalls() {
 function spawnDayPickups() {
   state.pickups = [];
   const h = GAME_CONFIG.house;
-  const count = 10 + Math.min(state.level, 8);
+  const count = 12;
   for (let i = 0; i < count; i++) {
     let px, py;
     do {
-      px = 70 + Math.random() * (GAME_CONFIG.worldWidth - 140);
-      py = 70 + Math.random() * (GAME_CONFIG.worldHeight - 140);
+      px = 60 + Math.random() * (GAME_CONFIG.worldWidth - 120);
+      py = 60 + Math.random() * (GAME_CONFIG.worldHeight - 120);
     } while (
       px > h.x - 35 &&
       px < h.x + h.width + 35 &&
@@ -124,17 +126,24 @@ function spawnEnemy() {
   });
 }
 
-// --- СЕНСОРНЫЕ ДЖОЙСТИКИ ---
+// --- СЕНСОРНЫЕ ДЖОЙСТИКИ + КЛАВИАТУРА ---
 const input = { moveX: 0, moveY: 0, aimX: 0, aimY: 0 };
+const keys = {};
+window.addEventListener("keydown", (e) => {
+  keys[e.code] = true;
+  if (e.code === "Space") performAttack();
+});
+window.addEventListener("keyup", (e) => {
+  keys[e.code] = false;
+});
 
 function setupJoystick(zoneId, knobId, onMove) {
   const zone = document.getElementById(zoneId);
   const knob = document.getElementById(knobId);
-  let touchId = null;
-  let mouseDown = false;
-  const maxDist = 36;
+  let activeId = null;
+  const maxDist = 38;
 
-  function setKnobFromPoint(clientX, clientY) {
+  function updateFromClient(clientX, clientY) {
     const rect = zone.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
@@ -149,54 +158,30 @@ function setupJoystick(zoneId, knobId, onMove) {
     onMove(dx / maxDist, dy / maxDist);
   }
 
-  function resetKnob() {
+  function reset() {
+    activeId = null;
     knob.style.transform = `translate(-50%, -50%)`;
     onMove(0, 0);
   }
 
-  zone.addEventListener("touchstart", (e) => {
+  zone.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    if (touchId !== null) return;
-    const t = e.changedTouches[0];
-    touchId = t.identifier;
-    setKnobFromPoint(t.clientX, t.clientY);
-  }, { passive: false });
+    zone.setPointerCapture(e.pointerId);
+    activeId = e.pointerId;
+    updateFromClient(e.clientX, e.clientY);
+  });
 
-  zone.addEventListener("touchmove", (e) => {
+  zone.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== activeId) return;
     e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      const t = e.changedTouches[i];
-      if (t.identifier === touchId) {
-        setKnobFromPoint(t.clientX, t.clientY);
-        break;
-      }
-    }
-  }, { passive: false });
-
-  const endTouch = (e) => {
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === touchId) {
-        touchId = null;
-        resetKnob();
-        break;
-      }
-    }
-  };
-  zone.addEventListener("touchend", endTouch, { passive: false });
-  zone.addEventListener("touchcancel", endTouch, { passive: false });
-
-  zone.addEventListener("mousedown", (e) => {
-    mouseDown = true;
-    setKnobFromPoint(e.clientX, e.clientY);
+    updateFromClient(e.clientX, e.clientY);
   });
-  window.addEventListener("mousemove", (e) => {
-    if (!mouseDown) return;
-    setKnobFromPoint(e.clientX, e.clientY);
+
+  zone.addEventListener("pointerup", (e) => {
+    if (e.pointerId === activeId) reset();
   });
-  window.addEventListener("mouseup", () => {
-    if (!mouseDown) return;
-    mouseDown = false;
-    resetKnob();
+  zone.addEventListener("pointercancel", (e) => {
+    if (e.pointerId === activeId) reset();
   });
 }
 
@@ -208,17 +193,16 @@ setupJoystick("stick-move", "knob-move", (x, y) => {
 setupJoystick("stick-aim", "knob-aim", (x, y) => {
   input.aimX = x;
   input.aimY = y;
-  if (Math.hypot(x, y) > 0.2) {
+  if (Math.hypot(x, y) > 0.15) {
     state.player.angle = Math.atan2(y, x);
   }
 });
 
 const btnAttack = document.getElementById("btn-attack");
-btnAttack.addEventListener("touchstart", (e) => {
+btnAttack.addEventListener("pointerdown", (e) => {
   e.preventDefault();
   performAttack();
-}, { passive: false });
-btnAttack.addEventListener("click", performAttack);
+});
 
 function performAttack() {
   if (state.gameOver || state.player.attackTimer > 0) return;
@@ -240,7 +224,7 @@ function performAttack() {
   } else {
     const cfg = GAME_CONFIG.weapons.bat;
     state.player.attackTimer = cfg.cooldown;
-    state.player.swingVisual = 0.18;
+    state.player.swingVisual = 0.2;
 
     state.enemies.forEach((en) => {
       const dx = en.x - state.player.x;
@@ -262,11 +246,10 @@ function performAttack() {
 }
 
 const btnRepair = document.getElementById("btn-repair");
-btnRepair.addEventListener("touchstart", (e) => {
+btnRepair.addEventListener("pointerdown", (e) => {
   e.preventDefault();
   repairNearestOpening();
-}, { passive: false });
-btnRepair.addEventListener("click", repairNearestOpening);
+});
 
 function getNearestDamagedOpening() {
   let nearest = null;
@@ -294,23 +277,16 @@ function repairNearestOpening() {
   }
 }
 
-const btnTestLvl = document.getElementById("btn-test-lvl");
-btnTestLvl.addEventListener("touchstart", (e) => {
+document.getElementById("btn-test-lvl").addEventListener("pointerdown", (e) => {
   e.preventDefault();
-  state.level++;
-  updateHUD();
-}, { passive: false });
-btnTestLvl.addEventListener("click", () => {
   state.level++;
   updateHUD();
 });
 
-const btnRestart = document.getElementById("btn-restart");
-btnRestart.addEventListener("touchstart", (e) => {
+document.getElementById("btn-restart").addEventListener("pointerdown", (e) => {
   e.preventDefault();
   initGame();
-}, { passive: false });
-btnRestart.addEventListener("click", initGame);
+});
 
 function resolveCircleRect(circle, rect) {
   const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.w));
@@ -352,11 +328,23 @@ function update(dt) {
   if (p.attackTimer > 0) p.attackTimer -= dt;
   if (p.swingVisual > 0) p.swingVisual -= dt;
 
-  p.x += input.moveX * GAME_CONFIG.player.speed * dt;
-  p.y += input.moveY * GAME_CONFIG.player.speed * dt;
+  let mx = input.moveX;
+  let my = input.moveY;
+  if (keys["KeyW"] || keys["ArrowUp"]) my -= 1;
+  if (keys["KeyS"] || keys["ArrowDown"]) my += 1;
+  if (keys["KeyA"] || keys["ArrowLeft"]) mx -= 1;
+  if (keys["KeyD"] || keys["ArrowRight"]) mx += 1;
 
-  if (Math.hypot(input.aimX, input.aimY) <= 0.2 && Math.hypot(input.moveX, input.moveY) > 0.2) {
-    p.angle = Math.atan2(input.moveY, input.moveX);
+  const moveMag = Math.hypot(mx, my);
+  if (moveMag > 0.05) {
+    const norm = Math.min(1, moveMag);
+    p.x += (mx / moveMag) * norm * GAME_CONFIG.player.speed * dt;
+    p.y += (my / moveMag) * norm * GAME_CONFIG.player.speed * dt;
+    state.walkAnim += dt * 12;
+
+    if (Math.hypot(input.aimX, input.aimY) <= 0.15) {
+      p.angle = Math.atan2(my, mx);
+    }
   }
 
   p.x = Math.max(p.radius, Math.min(GAME_CONFIG.worldWidth - p.radius, p.x));
@@ -368,7 +356,7 @@ function update(dt) {
   }
 
   state.pickups = state.pickups.filter((item) => {
-    if (Math.hypot(p.x - item.x, p.y - item.y) < p.radius + 14) {
+    if (Math.hypot(p.x - item.x, p.y - item.y) < p.radius + 16) {
       if (item.type === "wood") p.wood++;
       if (item.type === "ammo") p.ammo += 8;
       return false;
@@ -464,8 +452,71 @@ function updateHUD() {
   }
 }
 
+// --- ОТРИСОВКА МОДЕЛИ ЧЕЛОВЕЧКА ---
+function drawHumanPlayer(p) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.angle);
+
+  const step = Math.sin(state.walkAnim) * 6;
+
+  // Ноги
+  ctx.fillStyle = "#1e3a8a";
+  ctx.beginPath();
+  ctx.arc(step, -8, 6, 0, Math.PI * 2);
+  ctx.arc(-step, 8, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Плечи / куртка
+  ctx.fillStyle = "#2563eb";
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 13, 17, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Руки
+  ctx.fillStyle = "#fcd34d";
+  ctx.beginPath();
+  ctx.arc(10, -12, 5, 0, Math.PI * 2);
+  ctx.arc(14, 9, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Оружие в правой руке (бита или пистолет)
+  if (state.level >= GAME_CONFIG.pistolUnlockLevel) {
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillRect(14, 6, 16, 5);
+  } else {
+    ctx.fillStyle = "#d97706";
+    ctx.strokeStyle = "#fef08a";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(12, 6, 24, 6, 3);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Голова
+  ctx.fillStyle = "#fde68a";
+  ctx.strokeStyle = "#0f172a";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(2, 0, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Волосы / кепка
+  ctx.fillStyle = "#1e293b";
+  ctx.beginPath();
+  ctx.arc(0, 0, 9.5, Math.PI * 0.65, Math.PI * 1.35);
+  ctx.fill();
+
+  ctx.restore();
+}
+
 function render() {
-  const scale = GAME_CONFIG.cameraScale || 1;
+  const scale = GAME_CONFIG.cameraScale || 0.85;
   const viewW = canvas.width / scale;
   const viewH = canvas.height / scale;
   const camX = state.player.x - viewW / 2;
@@ -480,8 +531,8 @@ function render() {
   ctx.fillStyle = "#1e293b";
   ctx.fillRect(0, 0, GAME_CONFIG.worldWidth, GAME_CONFIG.worldHeight);
 
-  // Сетка земли для ощущения движения
-  ctx.strokeStyle = "rgba(148, 163, 184, 0.08)";
+  // Сетка земли
+  ctx.strokeStyle = "rgba(148, 163, 184, 0.1)";
   ctx.lineWidth = 1;
   const grid = 48;
   for (let gx = 0; gx <= GAME_CONFIG.worldWidth; gx += grid) {
@@ -497,18 +548,10 @@ function render() {
     ctx.stroke();
   }
 
-  // Граница мира
-  ctx.strokeStyle = "#475569";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(0, 0, GAME_CONFIG.worldWidth, GAME_CONFIG.worldHeight);
-
-  // Пол дома + коврик у входа
+  // Пол дома
   const h = GAME_CONFIG.house;
   ctx.fillStyle = "#5c3c24";
   ctx.fillRect(h.x, h.y, h.width, h.height);
-  ctx.strokeStyle = "#92400e";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(h.x, h.y, h.width, h.height);
 
   // Ресурсы на земле
   for (let item of state.pickups) {
@@ -525,9 +568,6 @@ function render() {
   ctx.fillStyle = "#94a3b8";
   for (let w of state.walls) {
     ctx.fillRect(w.x, w.y, w.w, w.h);
-    ctx.strokeStyle = "#1e293b";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(w.x, w.y, w.w, w.h);
   }
 
   // Окна / баррикады
@@ -570,7 +610,7 @@ function render() {
     ctx.fillRect(en.x - 15, en.y - en.radius - 9, 30 * (en.hp / en.maxHp), 5);
   }
 
-  // Анимация взмаха битой
+  // Взмах битой
   const p = state.player;
   if (p.swingVisual > 0) {
     ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
@@ -580,22 +620,8 @@ function render() {
     ctx.stroke();
   }
 
-  // Игрок (яркий контрастный персонаж с обводкой)
-  ctx.fillStyle = "#38bdf8";
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  // Оружие в руках
-  ctx.strokeStyle = state.level >= GAME_CONFIG.pistolUnlockLevel ? "#e2e8f0" : "#fbbf24";
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-  ctx.lineTo(p.x + Math.cos(p.angle) * 28, p.y + Math.sin(p.angle) * 28);
-  ctx.stroke();
+  // Модель человечка
+  drawHumanPlayer(p);
 
   ctx.restore();
 
