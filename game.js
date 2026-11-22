@@ -9,10 +9,10 @@ let state = {};
 
 function resizeCanvas() {
   const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width;
-  canvas.height = rect.height;
-  darkCanvas.width = rect.width;
-  darkCanvas.height = rect.height;
+  canvas.width = Math.max(1, rect.width);
+  canvas.height = Math.max(1, rect.height);
+  darkCanvas.width = Math.max(1, rect.width);
+  darkCanvas.height = Math.max(1, rect.height);
 }
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
@@ -37,12 +37,12 @@ function initGame() {
       attackTimer: 0,
       swingVisual: 0,
     },
-    // 4 окна/проема по сторонам дома
+    // 4 окна/проема по сторонам дома (сразу слегка повреждены для удобного теста ремонта)
     openings: [
-      { id: "top", x: cx - 35, y: h.y, w: 70, h: h.wallThickness, hp: 100 },
-      { id: "bottom", x: cx - 35, y: h.y + h.height - h.wallThickness, w: 70, h: h.wallThickness, hp: 100 },
-      { id: "left", x: h.x, y: cy - 35, w: h.wallThickness, h: 70, hp: 100 },
-      { id: "right", x: h.x + h.width - h.wallThickness, y: cy - 35, w: h.wallThickness, h: 70, hp: 100 },
+      { id: "top", x: cx - 35, y: h.y, w: 70, h: h.wallThickness, hp: 70 },
+      { id: "bottom", x: cx - 35, y: h.y + h.height - h.wallThickness, w: 70, h: h.wallThickness, hp: 70 },
+      { id: "left", x: h.x, y: cy - 35, w: h.wallThickness, h: 70, hp: 70 },
+      { id: "right", x: h.x + h.width - h.wallThickness, y: cy - 35, w: h.wallThickness, h: 70, hp: 70 },
     ],
     walls: [],
     pickups: [],
@@ -65,16 +65,12 @@ function buildHouseWalls() {
   const gap = 35;
 
   state.walls = [
-    // Верхняя стена (левая и правая части от окна)
     { x: h.x, y: h.y, w: cx - gap - h.x, h: t },
     { x: cx + gap, y: h.y, w: h.x + h.width - (cx + gap), h: t },
-    // Нижняя стена
     { x: h.x, y: h.y + h.height - t, w: cx - gap - h.x, h: t },
     { x: cx + gap, y: h.y + h.height - t, w: h.x + h.width - (cx + gap), h: t },
-    // Левая стена
     { x: h.x, y: h.y, w: t, h: cy - gap - h.y },
     { x: h.x, y: cy + gap, w: t, h: h.y + h.height - (cy + gap) },
-    // Правая стена
     { x: h.x + h.width - t, y: h.y, w: t, h: cy - gap - h.y },
     { x: h.x + h.width - t, y: cy + gap, w: t, h: h.y + h.height - (cy + gap) },
   ];
@@ -82,7 +78,7 @@ function buildHouseWalls() {
 
 function spawnDayPickups() {
   state.pickups = [];
-  const count = 8 + Math.min(state.level, 8);
+  const count = 10 + Math.min(state.level, 8);
   for (let i = 0; i < count; i++) {
     let px, py;
     do {
@@ -136,40 +132,15 @@ function setupJoystick(zoneId, knobId, onMove) {
   const zone = document.getElementById(zoneId);
   const knob = document.getElementById(knobId);
   let touchId = null;
+  let mouseDown = false;
   const maxDist = 36;
 
-  zone.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    const t = e.changedTouches[0];
-    touchId = t.identifier;
-    handleTouch(t);
-  });
-
-  zone.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    for (let t of e.changedTouches) {
-      if (t.identifier === touchId) handleTouch(t);
-    }
-  });
-
-  const reset = (e) => {
-    for (let t of e.changedTouches) {
-      if (t.identifier === touchId) {
-        touchId = null;
-        knob.style.transform = `translate(-50%, -50%)`;
-        onMove(0, 0);
-      }
-    }
-  };
-  zone.addEventListener("touchend", reset);
-  zone.addEventListener("touchcancel", reset);
-
-  function handleTouch(t) {
+  function setKnobFromPoint(clientX, clientY) {
     const rect = zone.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-    let dx = t.clientX - cx;
-    let dy = t.clientY - cy;
+    let dx = clientX - cx;
+    let dy = clientY - cy;
     const dist = Math.hypot(dx, dy);
     if (dist > maxDist) {
       dx = (dx / dist) * maxDist;
@@ -178,6 +149,57 @@ function setupJoystick(zoneId, knobId, onMove) {
     knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     onMove(dx / maxDist, dy / maxDist);
   }
+
+  function resetKnob() {
+    knob.style.transform = `translate(-50%, -50%)`;
+    onMove(0, 0);
+  }
+
+  zone.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    if (touchId !== null) return;
+    const t = e.changedTouches[0];
+    touchId = t.identifier;
+    setKnobFromPoint(t.clientX, t.clientY);
+  }, { passive: false });
+
+  zone.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === touchId) {
+        setKnobFromPoint(t.clientX, t.clientY);
+        break;
+      }
+    }
+  }, { passive: false });
+
+  const endTouch = (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchId) {
+        touchId = null;
+        resetKnob();
+        break;
+      }
+    }
+  };
+  zone.addEventListener("touchend", endTouch, { passive: false });
+  zone.addEventListener("touchcancel", endTouch, { passive: false });
+
+  // Поддержка теста мышью в браузере на ПК
+  zone.addEventListener("mousedown", (e) => {
+    mouseDown = true;
+    setKnobFromPoint(e.clientX, e.clientY);
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (!mouseDown) return;
+    setKnobFromPoint(e.clientX, e.clientY);
+  });
+  window.addEventListener("mouseup", () => {
+    if (!mouseDown) return;
+    mouseDown = false;
+    resetKnob();
+  });
 }
 
 setupJoystick("stick-move", "knob-move", (x, y) => {
@@ -194,11 +216,12 @@ setupJoystick("stick-aim", "knob-aim", (x, y) => {
 });
 
 // Кнопка удара / выстрела
-document.getElementById("btn-attack").addEventListener("touchstart", (e) => {
+const btnAttack = document.getElementById("btn-attack");
+btnAttack.addEventListener("touchstart", (e) => {
   e.preventDefault();
   performAttack();
-});
-document.getElementById("btn-attack").addEventListener("click", performAttack);
+}, { passive: false });
+btnAttack.addEventListener("click", performAttack);
 
 function performAttack() {
   if (state.gameOver || state.player.attackTimer > 0) return;
@@ -246,12 +269,12 @@ const btnRepair = document.getElementById("btn-repair");
 btnRepair.addEventListener("touchstart", (e) => {
   e.preventDefault();
   repairNearestOpening();
-});
+}, { passive: false });
 btnRepair.addEventListener("click", repairNearestOpening);
 
 function getNearestDamagedOpening() {
   let nearest = null;
-  let minD = 68;
+  let minD = 95;
   for (let op of state.openings) {
     if (op.hp >= GAME_CONFIG.house.windowMaxHp) continue;
     const cx = op.x + op.w / 2;
@@ -266,7 +289,7 @@ function getNearestDamagedOpening() {
 }
 
 function repairNearestOpening() {
-  if (state.player.wood <= 0) return;
+  if (state.gameOver || state.player.wood <= 0) return;
   const op = getNearestDamagedOpening();
   if (op) {
     state.player.wood--;
@@ -276,12 +299,23 @@ function repairNearestOpening() {
 }
 
 // Тест повышения уровня
-document.getElementById("btn-test-lvl").addEventListener("click", () => {
+const btnTestLvl = document.getElementById("btn-test-lvl");
+btnTestLvl.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  state.level++;
+  updateHUD();
+}, { passive: false });
+btnTestLvl.addEventListener("click", () => {
   state.level++;
   updateHUD();
 });
 
-document.getElementById("btn-restart").addEventListener("click", initGame);
+const btnRestart = document.getElementById("btn-restart");
+btnRestart.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  initGame();
+}, { passive: false });
+btnRestart.addEventListener("click", initGame);
 
 // --- ФИЗИКА И СТОЛКНОВЕНИЯ ---
 function resolveCircleRect(circle, rect) {
@@ -306,7 +340,6 @@ let lastTime = performance.now();
 function update(dt) {
   if (state.gameOver) return;
 
-  // Таймер дня/ночи
   state.phaseTimer -= dt;
   if (state.phaseTimer <= 0) {
     if (!state.isNight) {
@@ -316,13 +349,12 @@ function update(dt) {
       state.isNight = false;
       state.level++;
       state.phaseTimer = GAME_CONFIG.dayDuration;
-      state.enemies = []; // рассвет сжигает оставшихся монстров
+      state.enemies = [];
       state.player.hp = Math.min(GAME_CONFIG.player.maxHp, state.player.hp + 15);
       spawnDayPickups();
     }
   }
 
-  // Движение игрока
   const p = state.player;
   if (p.attackTimer > 0) p.attackTimer -= dt;
   if (p.swingVisual > 0) p.swingVisual -= dt;
@@ -330,7 +362,6 @@ function update(dt) {
   p.x += input.moveX * GAME_CONFIG.player.speed * dt;
   p.y += input.moveY * GAME_CONFIG.player.speed * dt;
 
-  // Поворот по ходу движения, если правый стик не трогают
   if (Math.hypot(input.aimX, input.aimY) <= 0.2 && Math.hypot(input.moveX, input.moveY) > 0.2) {
     p.angle = Math.atan2(input.moveY, input.moveX);
   }
@@ -343,7 +374,6 @@ function update(dt) {
     if (op.hp > 0) resolveCircleRect(p, op);
   }
 
-  // Подбор ресурсов
   state.pickups = state.pickups.filter((item) => {
     if (Math.hypot(p.x - item.x, p.y - item.y) < p.radius + 14) {
       if (item.type === "wood") p.wood++;
@@ -353,7 +383,6 @@ function update(dt) {
     return true;
   });
 
-  // Спавн монстров ночью
   if (state.isNight) {
     state.spawnTimer -= dt;
     if (state.spawnTimer <= 0) {
@@ -362,7 +391,6 @@ function update(dt) {
     }
   }
 
-  // Обновление пуль
   state.bullets = state.bullets.filter((b) => {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
@@ -381,7 +409,6 @@ function update(dt) {
     return true;
   });
 
-  // ИИ монстров
   for (let en of state.enemies) {
     if (en.attackCooldown > 0) en.attackCooldown -= dt;
 
@@ -394,7 +421,6 @@ function update(dt) {
 
     for (let w of state.walls) resolveCircleRect(en, w);
 
-    // Проверка столкновения с заколоченными окнами
     for (let op of state.openings) {
       if (op.hp > 0 && resolveCircleRect(en, op)) {
         if (en.attackCooldown <= 0) {
@@ -404,7 +430,6 @@ function update(dt) {
       }
     }
 
-    // Урон игроку
     if (dist < p.radius + en.radius + 4 && en.attackCooldown <= 0) {
       p.hp -= en.damage;
       en.attackCooldown = 1.0;
@@ -419,7 +444,6 @@ function update(dt) {
 
   state.enemies = state.enemies.filter((en) => en.hp > 0);
 
-  // Активация кнопки починки
   const nearOp = getNearestDamagedOpening();
   btnRepair.disabled = !(nearOp && p.wood > 0);
 
@@ -440,10 +464,10 @@ function updateHUD() {
 
   if (state.level >= GAME_CONFIG.pistolUnlockLevel) {
     elWeapon.textContent = `🔫 Пистолет (${state.player.ammo})`;
-    document.getElementById("btn-attack").textContent = state.player.ammo > 0 ? "🔥 ОГОНЬ" : "🏏 УДАР";
+    btnAttack.textContent = state.player.ammo > 0 ? "🔥 ОГОНЬ" : "🏏 УДАР";
   } else {
     elWeapon.textContent = `🏏 Бита (Пистолет с ${GAME_CONFIG.pistolUnlockLevel} ур.)`;
-    document.getElementById("btn-attack").textContent = "⚔️ УДАР";
+    btnAttack.textContent = "⚔️ УДАР";
   }
 }
 
@@ -456,16 +480,13 @@ function render() {
   ctx.save();
   ctx.translate(-camX, -camY);
 
-  // Земля / двор
   ctx.fillStyle = "#1e293b";
   ctx.fillRect(0, 0, GAME_CONFIG.worldWidth, GAME_CONFIG.worldHeight);
 
-  // Пол дома
   const h = GAME_CONFIG.house;
   ctx.fillStyle = "#3f2e21";
   ctx.fillRect(h.x, h.y, h.width, h.height);
 
-  // Ресурсы на земле
   for (let item of state.pickups) {
     ctx.fillStyle = item.type === "wood" ? "#d97706" : "#38bdf8";
     ctx.beginPath();
@@ -473,114 +494,11 @@ function render() {
     ctx.fill();
   }
 
-  // Стены дома
   ctx.fillStyle = "#64748b";
   for (let w of state.walls) {
     ctx.fillRect(w.x, w.y, w.w, w.h);
   }
 
-  // Окна / баррикады
   for (let op of state.openings) {
     if (op.hp > 0) {
-      ctx.fillStyle = op.hp > 50 ? "#b45309" : "#ef4444";
-      ctx.fillRect(op.x, op.y, op.w, op.h);
-    } else {
-      ctx.strokeStyle = "rgba(255,255,255,0.2)";
-      ctx.strokeRect(op.x, op.y, op.w, op.h);
-    }
-  }
-
-  // Пули
-  ctx.fillStyle = "#fde047";
-  for (let b of state.bullets) {
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Монстры
-  for (let en of state.enemies) {
-    ctx.fillStyle = en.isFast ? "#a855f7" : "#22c55e";
-    ctx.beginPath();
-    ctx.arc(en.x, en.y, en.radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Полоска HP врага
-    ctx.fillStyle = "#000";
-    ctx.fillRect(en.x - 14, en.y - en.radius - 8, 28, 4);
-    ctx.fillStyle = "#ef4444";
-    ctx.fillRect(en.x - 14, en.y - en.radius - 8, 28 * (en.hp / en.maxHp), 4);
-  }
-
-  // Анимация взмаха битой
-  const p = state.player;
-  if (p.swingVisual > 0) {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, GAME_CONFIG.weapons.bat.range, p.angle - 1.1, p.angle + 1.1);
-    ctx.stroke();
-  }
-
-  // Игрок
-  ctx.fillStyle = "#3b82f6";
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Оружие в руках
-  ctx.strokeStyle = state.level >= GAME_CONFIG.pistolUnlockLevel ? "#94a3b8" : "#d97706";
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-  ctx.lineTo(p.x + Math.cos(p.angle) * 26, p.y + Math.sin(p.angle) * 26);
-  ctx.stroke();
-
-  ctx.restore();
-
-  // --- ТЕМНОТА И ФОНАРИК НОЧЬЮ ---
-  if (state.isNight) {
-    darkCtx.globalCompositeOperation = "source-over";
-    darkCtx.fillStyle = "rgba(3, 5, 10, 0.94)";
-    darkCtx.fillRect(0, 0, darkCanvas.width, darkCanvas.height);
-
-    darkCtx.globalCompositeOperation = "destination-out";
-    const px = canvas.width / 2;
-    const py = canvas.height / 2;
-
-    // Мягкий свет вокруг игрока
-    const aura = darkCtx.createRadialGradient(px, py, 10, px, py, 75);
-    aura.addColorStop(0, "rgba(0,0,0,1)");
-    aura.addColorStop(1, "rgba(0,0,0,0)");
-    darkCtx.fillStyle = aura;
-    darkCtx.beginPath();
-    darkCtx.arc(px, py, 75, 0, Math.PI * 2);
-    darkCtx.fill();
-
-    // Конус фонарика
-    const beamLen = 280;
-    const spread = 0.48;
-    const grad = darkCtx.createRadialGradient(px, py, 15, px, py, beamLen);
-    grad.addColorStop(0, "rgba(0,0,0,1)");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    darkCtx.fillStyle = grad;
-    darkCtx.beginPath();
-    darkCtx.moveTo(px, py);
-    darkCtx.arc(px, py, beamLen, p.angle - spread, p.angle + spread);
-    darkCtx.closePath();
-    darkCtx.fill();
-
-    ctx.drawImage(darkCanvas, 0, 0);
-  }
-}
-
-function loop(now) {
-  const dt = Math.min(0.05, (now - lastTime) / 1000);
-  lastTime = now;
-  update(dt);
-  render();
-  requestAnimationFrame(loop);
-}
-
-initGame();
-requestAnimationFrame(loop);
+      ctx.fillStyle = op.hp > 50 ? "#b45
