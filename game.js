@@ -6,24 +6,50 @@ const darkCtx = darkCanvas.getContext("2d");
 
 let state = {};
 
-// --- СПРАЙТЫ ИГРОКА (7 СОСТОЯНИЙ) ---
-const PLAYER_SPRITES = {
-  idle: new Image(),
-  walk_left: new Image(),
-  walk_right: new Image(),
-  bat_idle: new Image(),
-  bat_attack: new Image(),
-  pistol_idle: new Image(),
-  pistol_attack: new Image(),
+// --- СПРАЙТЫ ИГРОКА (7 СОСТОЯНИЙ + УДАЛЕНИЕ СВЕТЛОГО ФОНА) ---
+const RAW_SPRITE_PATHS = {
+  idle: "idle.jpg?v=4",
+  walk_left: "walk_left.jpg?v=4",
+  walk_right: "walk_right.jpg?v=4",
+  bat_idle: "bat_idle.jpg?v=4",
+  bat_attack: "bat_attack.jpg?v=4",
+  pistol_idle: "pistol_idle.jpg?v=4",
+  pistol_attack: "pistol_attack.jpg?v=4",
 };
 
-PLAYER_SPRITES.idle.src = "sprites/idle.jpg?v=2";
-PLAYER_SPRITES.walk_left.src = "sprites/walk_left.jpg?v=2";
-PLAYER_SPRITES.walk_right.src = "sprites/walk_right.jpg?v=2";
-PLAYER_SPRITES.bat_idle.src = "sprites/bat_idle.jpg?v=2";
-PLAYER_SPRITES.bat_attack.src = "sprites/bat_attack.jpg?v=2";
-PLAYER_SPRITES.pistol_idle.src = "sprites/pistol_idle.jpg?v=2";
-PLAYER_SPRITES.pistol_attack.src = "sprites/pistol_attack.jpg?v=2";
+const PLAYER_SPRITES = {};
+
+function removeLightBackground(img, threshold = 235) {
+  const tempCanvas = document.createElement("canvas");
+  const tempCtx = tempCanvas.getContext("2d");
+  tempCanvas.width = img.naturalWidth;
+  tempCanvas.height = img.naturalHeight;
+
+  tempCtx.drawImage(img, 0, 0);
+  const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    if (r >= threshold && g >= threshold && b >= threshold) {
+      data[i + 3] = 0;
+    }
+  }
+
+  tempCtx.putImageData(imageData, 0, 0);
+  return tempCanvas;
+}
+
+Object.entries(RAW_SPRITE_PATHS).forEach(([key, src]) => {
+  const rawImg = new Image();
+  rawImg.onload = () => {
+    PLAYER_SPRITES[key] = removeLightBackground(rawImg, 235);
+  };
+  rawImg.src = src;
+});
 
 let activeSpriteKey = "idle";
 let stepAnimTimer = 0;
@@ -379,7 +405,6 @@ function update(dt) {
     }
   }
 
-  // Выбор кадра анимации человечка
   const hasPistolEquipped = state.level >= GAME_CONFIG.pistolUnlockLevel && p.ammo > 0;
   const isMoving = moveMag > 0.05;
   const isAttackingBat = p.swingVisual > 0;
@@ -514,11 +539,11 @@ function updateHUD() {
 }
 
 function drawHumanPlayer(p) {
-  const img = PLAYER_SPRITES[activeSpriteKey];
+  const sprite = PLAYER_SPRITES[activeSpriteKey];
   const drawSize = 58;
   const half = drawSize / 2;
 
-  if (!img || !img.complete || img.naturalWidth === 0) {
+  if (!sprite) {
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.fillStyle = "#38bdf8";
@@ -529,7 +554,6 @@ function drawHumanPlayer(p) {
     return;
   }
 
-  // Смотрит ли персонаж влево по горизонтали
   const vx = Math.cos(p.angle);
   const faceLeft = vx < -0.15;
 
@@ -538,9 +562,10 @@ function drawHumanPlayer(p) {
   if (faceLeft) {
     ctx.scale(-1, 1);
   }
-  ctx.drawImage(img, -half, -half, drawSize, drawSize);
+  ctx.drawImage(sprite, -half, -half, drawSize, drawSize);
   ctx.restore();
 }
+
 function render() {
   const scale = GAME_CONFIG.cameraScale || 0.85;
   const viewW = canvas.width / scale;
