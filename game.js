@@ -441,11 +441,20 @@ function update(dt) {
   p.x = Math.max(p.radius, Math.min(GAME_CONFIG.worldWidth - p.radius, p.x));
   p.y = Math.max(p.radius, Math.min(GAME_CONFIG.worldHeight - p.radius, p.y));
 
-  for (let w of state.walls) resolveCircleRect(p, w);
-  for (let op of state.openings) {
-    if (op.hp > 0) resolveCircleRect(p, op);
-  }
+ const bodyCollider = {
+  x: p.x,
+  y: p.y,
+  radius: Math.max(p.radius, 22),
+};
 
+for (let w of state.walls) {
+  resolveCircleRect(bodyCollider, w);
+}
+for (let op of state.openings) {
+  if (op.hp > 0) resolveCircleRect(bodyCollider, op);
+}
+p.x = bodyCollider.x;
+p.y = bodyCollider.y;
   state.pickups = state.pickups.filter((item) => {
     if (Math.hypot(p.x - item.x, p.y - item.y) < p.radius + 16) {
       if (item.type === "wood") p.wood++;
@@ -545,7 +554,7 @@ function updateHUD() {
 
 function drawHumanPlayer(p) {
   const sprite = PLAYER_SPRITES[activeSpriteKey] || PLAYER_SPRITES.idle;
-  const drawSize = 116; // было 58 — увеличено в 2 раза
+  const drawSize = 92; // подбери 84–100 по вкусу
   const half = drawSize / 2;
 
   if (!sprite || (sprite instanceof HTMLImageElement && (!sprite.complete || sprite.naturalWidth === 0))) {
