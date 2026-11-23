@@ -46,7 +46,12 @@ function removeLightBackground(img, threshold = 235) {
 Object.entries(RAW_SPRITE_PATHS).forEach(([key, src]) => {
   const rawImg = new Image();
   rawImg.onload = () => {
-    PLAYER_SPRITES[key] = removeLightBackground(rawImg, 235);
+    try {
+      // Чем выше число (до 255), тем меньше пикселей уходит в прозрачность
+      PLAYER_SPRITES[key] = removeLightBackground(rawImg, 250);
+    } catch (e) {
+      PLAYER_SPRITES[key] = rawImg;
+    }
   };
   rawImg.src = src;
 });
@@ -539,18 +544,11 @@ function updateHUD() {
 }
 
 function drawHumanPlayer(p) {
-  const sprite = PLAYER_SPRITES[activeSpriteKey];
-  const drawSize = 58;
+  const sprite = PLAYER_SPRITES[activeSpriteKey] || PLAYER_SPRITES.idle;
+  const drawSize = 116; // было 58 — увеличено в 2 раза
   const half = drawSize / 2;
 
-  if (!sprite) {
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.fillStyle = "#38bdf8";
-    ctx.beginPath();
-    ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+  if (!sprite || (sprite instanceof HTMLImageElement && (!sprite.complete || sprite.naturalWidth === 0))) {
     return;
   }
 
