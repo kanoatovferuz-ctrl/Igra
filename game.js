@@ -710,7 +710,7 @@ function render() {
     darkCtx.restore();
     ctx.drawImage(darkCanvas, 0, 0);
   }
-}
+
   
 function loop(now) {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
