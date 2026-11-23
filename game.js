@@ -521,7 +521,6 @@ function drawHumanPlayer(p) {
   if (!img || !img.complete || img.naturalWidth === 0) {
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle);
     ctx.fillStyle = "#38bdf8";
     ctx.beginPath();
     ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
@@ -530,13 +529,18 @@ function drawHumanPlayer(p) {
     return;
   }
 
+  // Смотрит ли персонаж влево по горизонтали
+  const vx = Math.cos(p.angle);
+  const faceLeft = vx < -0.15;
+
   ctx.save();
   ctx.translate(p.x, p.y);
-  ctx.rotate(p.angle + Math.PI / 2); // если картинка смотрит вправо — убери "+ Math.PI / 2"
+  if (faceLeft) {
+    ctx.scale(-1, 1);
+  }
   ctx.drawImage(img, -half, -half, drawSize, drawSize);
   ctx.restore();
 }
-
 function render() {
   const scale = GAME_CONFIG.cameraScale || 0.85;
   const viewW = canvas.width / scale;
