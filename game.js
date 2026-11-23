@@ -17,13 +17,13 @@ const PLAYER_SPRITES = {
   pistol_attack: new Image(),
 };
 
-PLAYER_SPRITES.idle.src = "idle.jpg?v=2";
-PLAYER_SPRITES.walk_left.src = "walk_left.jpg?v=2";
-PLAYER_SPRITES.walk_right.src = "walk_right.jpg?v=2";
-PLAYER_SPRITES.bat_idle.src = "bat_idle.jpg?v=2";
-PLAYER_SPRITES.bat_attack.src = "bat_attack.jpg?v=2";
-PLAYER_SPRITES.pistol_idle.src = "pistol_idle.jpg?v=2";
-PLAYER_SPRITES.pistol_attack.src = "pistol_attack.jpg?v=2";
+PLAYER_SPRITES.idle.src = "sprites/idle.jpg?v=2";
+PLAYER_SPRITES.walk_left.src = "sprites/walk_left.jpg?v=2";
+PLAYER_SPRITES.walk_right.src = "sprites/walk_right.jpg?v=2";
+PLAYER_SPRITES.bat_idle.src = "sprites/bat_idle.jpg?v=2";
+PLAYER_SPRITES.bat_attack.src = "sprites/bat_attack.jpg?v=2";
+PLAYER_SPRITES.pistol_idle.src = "sprites/pistol_idle.jpg?v=2";
+PLAYER_SPRITES.pistol_attack.src = "sprites/pistol_attack.jpg?v=2";
 
 let activeSpriteKey = "idle";
 let stepAnimTimer = 0;
