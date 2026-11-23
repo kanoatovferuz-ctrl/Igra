@@ -6,6 +6,30 @@ const darkCtx = darkCanvas.getContext("2d");
 
 let state = {};
 
+// --- СПРАЙТЫ ИГРОКА (7 СОСТОЯНИЙ) ---
+const PLAYER_SPRITES = {
+  idle: new Image(),
+  walk_left: new Image(),
+  walk_right: new Image(),
+  bat_idle: new Image(),
+  bat_attack: new Image(),
+  pistol_idle: new Image(),
+  pistol_attack: new Image(),
+};
+
+PLAYER_SPRITES.idle.src = "idle.jpg?v=2";
+PLAYER_SPRITES.walk_left.src = "walk_left.jpg?v=2";
+PLAYER_SPRITES.walk_right.src = "walk_right.jpg?v=2";
+PLAYER_SPRITES.bat_idle.src = "bat_idle.jpg?v=2";
+PLAYER_SPRITES.bat_attack.src = "bat_attack.jpg?v=2";
+PLAYER_SPRITES.pistol_idle.src = "pistol_idle.jpg?v=2";
+PLAYER_SPRITES.pistol_attack.src = "pistol_attack.jpg?v=2";
+
+let activeSpriteKey = "idle";
+let stepAnimTimer = 0;
+let stepSideToggle = false;
+let shootVisualTimer = 0;
+
 function resizeCanvas() {
   const w = window.innerWidth || 360;
   const h = window.innerHeight || 640;
@@ -21,6 +45,11 @@ function initGame() {
   const h = GAME_CONFIG.house;
   const cx = h.x + h.width / 2;
   const cy = h.y + h.height / 2;
+
+  activeSpriteKey = "idle";
+  stepAnimTimer = 0;
+  stepSideToggle = false;
+  shootVisualTimer = 0;
 
   state = {
     level: 1,
@@ -214,6 +243,7 @@ function performAttack() {
     const cfg = GAME_CONFIG.weapons.pistol;
     state.player.attackTimer = cfg.cooldown;
     state.player.ammo--;
+    shootVisualTimer = 0.14;
     state.bullets.push({
       x: state.player.x + Math.cos(state.player.angle) * 22,
       y: state.player.y + Math.sin(state.player.angle) * 22,
@@ -328,6 +358,7 @@ function update(dt) {
   const p = state.player;
   if (p.attackTimer > 0) p.attackTimer -= dt;
   if (p.swingVisual > 0) p.swingVisual -= dt;
+  if (shootVisualTimer > 0) shootVisualTimer -= dt;
 
   let mx = input.moveX;
   let my = input.moveY;
@@ -345,6 +376,35 @@ function update(dt) {
 
     if (Math.hypot(input.aimX, input.aimY) <= 0.15) {
       p.angle = Math.atan2(my, mx);
+    }
+  }
+
+  // Выбор кадра анимации человечка
+  const hasPistolEquipped = state.level >= GAME_CONFIG.pistolUnlockLevel && p.ammo > 0;
+  const isMoving = moveMag > 0.05;
+  const isAttackingBat = p.swingVisual > 0;
+  const isShootingPistol = shootVisualTimer > 0;
+
+  if (isShootingPistol) {
+    activeSpriteKey = "pistol_attack";
+  } else if (isAttackingBat) {
+    activeSpriteKey = "bat_attack";
+  } else if (isMoving) {
+    stepAnimTimer += dt;
+    if (stepAnimTimer >= 0.14) {
+      stepAnimTimer = 0;
+      stepSideToggle = !stepSideToggle;
+    }
+    activeSpriteKey = stepSideToggle ? "walk_right" : "walk_left";
+  } else {
+    stepAnimTimer = 0;
+    stepSideToggle = false;
+    if (hasPistolEquipped) {
+      activeSpriteKey = "pistol_idle";
+    } else if (state.level >= 1) {
+      activeSpriteKey = "bat_idle";
+    } else {
+      activeSpriteKey = "idle";
     }
   }
 
@@ -453,72 +513,27 @@ function updateHUD() {
   }
 }
 
-function drawBat(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
 function drawHumanPlayer(p) {
-  ctx.save();
-  ctx.translate(p.x, p.y);
-  ctx.rotate(p.angle);
+  const img = PLAYER_SPRITES[activeSpriteKey];
+  const drawSize = 58;
+  const half = drawSize / 2;
 
-  const step = Math.sin(state.walkAnim) * 6;
-
-  ctx.fillStyle = "#1e3a8a";
-  ctx.beginPath();
-  ctx.arc(step, -8, 6, 0, Math.PI * 2);
-  ctx.arc(-step, 8, 6, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#2563eb";
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 13, 17, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = "#fcd34d";
-  ctx.beginPath();
-  ctx.arc(10, -12, 5, 0, Math.PI * 2);
-  ctx.arc(14, 9, 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  if (state.level >= GAME_CONFIG.pistolUnlockLevel) {
-    ctx.fillStyle = "#94a3b8";
-    ctx.fillRect(14, 6, 16, 5);
-  } else {
-    ctx.fillStyle = "#d97706";
-    ctx.strokeStyle = "#fef08a";
-    ctx.lineWidth = 1.5;
-    drawBat(12, 6, 24, 6, 3);
+  if (!img || !img.complete || img.naturalWidth === 0) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+    ctx.fillStyle = "#38bdf8";
+    ctx.beginPath();
+    ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.stroke();
+    ctx.restore();
+    return;
   }
 
-  ctx.fillStyle = "#fde68a";
-  ctx.strokeStyle = "#0f172a";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(2, 0, 10, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = "#1e293b";
-  ctx.beginPath();
-  ctx.arc(0, 0, 9.5, Math.PI * 0.65, Math.PI * 1.35);
-  ctx.fill();
-
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.angle + Math.PI / 2); // если картинка смотрит вправо — убери "+ Math.PI / 2"
+  ctx.drawImage(img, -half, -half, drawSize, drawSize);
   ctx.restore();
 }
 
