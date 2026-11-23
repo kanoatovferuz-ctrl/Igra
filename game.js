@@ -678,22 +678,27 @@ function render() {
     darkCtx.fillStyle = "rgba(3, 5, 10, 0.9)";
     darkCtx.fillRect(0, 0, darkCanvas.width, darkCanvas.height);
 
+    darkCtx.save();
     darkCtx.globalCompositeOperation = "destination-out";
+    darkCtx.filter = "blur(18px)";
+
     const px = canvas.width / 2;
     const py = canvas.height / 2;
 
-    const aura = darkCtx.createRadialGradient(px, py, 12, px, py, 95);
+    const aura = darkCtx.createRadialGradient(px, py, 10, px, py, 95);
     aura.addColorStop(0, "rgba(0,0,0,1)");
+    aura.addColorStop(0.6, "rgba(0,0,0,0.65)");
     aura.addColorStop(1, "rgba(0,0,0,0)");
     darkCtx.fillStyle = aura;
     darkCtx.beginPath();
     darkCtx.arc(px, py, 95, 0, Math.PI * 2);
     darkCtx.fill();
 
-    const beamLen = 300;
-    const spread = 0.5;
-    const grad = darkCtx.createRadialGradient(px, py, 15, px, py, beamLen);
+    const beamLen = 310;
+    const spread = 0.52;
+    const grad = darkCtx.createRadialGradient(px, py, 12, px, py, beamLen);
     grad.addColorStop(0, "rgba(0,0,0,1)");
+    grad.addColorStop(0.55, "rgba(0,0,0,0.75)");
     grad.addColorStop(1, "rgba(0,0,0,0)");
     darkCtx.fillStyle = grad;
     darkCtx.beginPath();
@@ -702,10 +707,11 @@ function render() {
     darkCtx.closePath();
     darkCtx.fill();
 
+    darkCtx.restore();
     ctx.drawImage(darkCanvas, 0, 0);
   }
 }
-
+  
 function loop(now) {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
