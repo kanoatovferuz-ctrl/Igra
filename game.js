@@ -8,13 +8,13 @@ let state = {};
 
 // --- СПРАЙТЫ ИГРОКА (7 СОСТОЯНИЙ + УДАЛЕНИЕ СВЕТЛОГО ФОНА) ---
 const RAW_SPRITE_PATHS = {
-  idle: "idle.jpg?v=4",
-  walk_left: "walk_left.jpg?v=4",
-  walk_right: "walk_right.jpg?v=4",
-  bat_idle: "bat_idle.jpg?v=4",
-  bat_attack: "bat_attack.jpg?v=4",
-  pistol_idle: "pistol_idle.jpg?v=4",
-  pistol_attack: "pistol_attack.jpg?v=4",
+  idle: "sprites/idle.jpg?v=5",
+  walk_left: "sprites/walk_left.jpg?v=5",
+  walk_right: "sprites/walk_right.jpg?v=5",
+  bat_idle: "sprites/bat_idle.jpg?v=5",
+  bat_attack: "sprites/bat_attack.jpg?v=5",
+  pistol_idle: "sprites/pistol_idle.jpg?v=5",
+  pistol_attack: "sprites/pistol_attack.jpg?v=5",
 };
 
 const PLAYER_SPRITES = {};
